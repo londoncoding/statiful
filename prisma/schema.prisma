@@ -1,0 +1,131 @@
+// ============================================
+// PRISMA CONFIGURATION
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// LEAGUES
+// ============================================
+
+model League {
+  id            Int         @id @default(autoincrement())
+  apiId         Int         @unique @map("api_id")
+  name          String      @db.VarChar(100)
+  country       String      @db.VarChar(50)
+  logoUrl       String?     @map("logo_url") @db.Text
+  currentSeason String      @map("current_season") @db.VarChar(20)
+  lastSyncedAt  DateTime?   @map("last_synced_at")
+  teams         TeamSeason[]
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  
+  @@map("leagues")
+}
+
+// ============================================
+// TEAMS
+// ============================================
+
+model Team {
+  id             Int          @id @default(autoincrement())
+  apiId          Int          @unique @map("api_id")
+  name           String       @db.VarChar(100)
+  shortCode      String?      @map("short_code") @db.VarChar(10)
+  logoUrl        String?      @map("logo_url") @db.Text
+  venueName      String?      @map("venue_name") @db.VarChar(100)
+  venueCity      String?      @map("venue_city") @db.VarChar(100)
+  primaryColor   String?      @map("primary_color") @db.VarChar(7)
+  secondaryColor String?      @map("secondary_color") @db.VarChar(7)
+  accentColor    String?      @map("accent_color") @db.VarChar(7)
+  isActive       Boolean      @default(true) @map("is_active")
+  seasons        TeamSeason[]
+  players        Player[]
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  
+  @@index([name])
+  @@index([isActive])
+  @@map("teams")
+}
+
+// ============================================
+// TEAM SEASONS
+// ============================================
+
+model TeamSeason {
+  id        Int       @id @default(autoincrement())
+  teamId    Int       @map("team_id")
+  team      Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  leagueId  Int       @map("league_id")
+  league    League    @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  season    String    @db.VarChar(20)
+  status    String    @db.VarChar(20)
+  joinedAt  DateTime  @default(now()) @map("joined_at")
+  leftAt    DateTime? @map("left_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  @@unique([teamId, leagueId, season])
+  @@index([leagueId, season])
+  @@index([status])
+  @@map("team_seasons")
+}
+
+// ============================================
+// PLAYERS
+// ============================================
+
+model Player {
+  id            Int       @id @default(autoincrement())
+  apiId         Int       @unique @map("api_id")
+  firstName     String    @map("first_name") @db.VarChar(50)
+  lastName      String    @map("last_name") @db.VarChar(50)
+  name          String    @db.VarChar(100)
+  nationality   String    @db.VarChar(50)
+  birthDate     DateTime? @map("birth_date")
+  height        String?   @db.VarChar(10)
+  weight        String?   @db.VarChar(10)
+  position      String    @db.VarChar(20)
+  photoUrl      String?   @map("photo_url") @db.Text
+  currentTeamId Int?      @map("current_team_id")
+  currentTeam   Team?     @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  @@index([name])
+  @@index([position])
+  @@index([currentTeamId])
+  @@map("players")
+}
+
+// ============================================
+// SYNC LOGS
+// ============================================
+
+model SyncLog {
+  id             Int       @id @default(autoincrement())
+  syncType       String    @map("sync_type") @db.VarChar(50)
+  leagueId       Int?      @map("league_id")
+  season         String?   @db.VarChar(20)
+  status         String    @db.VarChar(20)
+  recordsAdded   Int       @default(0) @map("records_added")
+  recordsUpdated Int       @default(0) @map("records_updated")
+  recordsRemoved Int       @default(0) @map("records_removed")
+  errorMessage   String?   @map("error_message") @db.Text
+  startedAt      DateTime  @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  durationMs     Int?      @map("duration_ms")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  
+  @@index([syncType, createdAt])
+  @@index([leagueId, season])
+  @@map("sync_logs")
+}
